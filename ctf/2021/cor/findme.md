@@ -108,12 +108,12 @@ First, we need to generate an appropriate will.  The payload of the will doesn't
 * connect client1 with id `zwnj00` and will packet `will`
 * force-disconnect client1
 
-![broker id output](/images/1.png)
+![broker id output](images/1.png)
 
 Subscribing to `$SYS/e273cbbe-a7e5-4d3a-a765-811857ecdf0a/new/subscribes` and then calling the admin from the web interface shows the following message:
 
-![subscription log output](/images/2.png)
+![subscription log output](images/2.png)
 
 Subscribing to that topic as instructed gives the flag, `corctf{f0und_you_using_l33tqtt_techniqttes}`
 
-![flag](/images/3.png)
+![flag](images/3.png)
