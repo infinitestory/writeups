@@ -28,10 +28,10 @@ aedes.authorizeSubscribe = (client, sub, callback) => {
 ```
 
 Comparing this source to the MQTT protocol spec and the flavor text ("i learned mqtt and made a cool chat app with it. it's so secure i bet you can't find me on it") we can make a few observations:
-* Wildcards are not allowed, so we can't just go read every message channel at once.
-* We're probably looking to find the admin's user id to subscribe to their message channel.  The website has a big red button to call the admin, which presumably causes an admin client to connect and start publishing the flag on their secret message channel.
-* Clients are allowed to subscribe to message and errors channels for other clients, as long as your client id is a prefix of theirs.
-* MQTT (as a convention) reserves topics beginning with $SYS for debug information.  We are allowed to subscribe to these, or any non-message non-error channels, at will.
+* Wildcards are not allowed, so we can't just go sub to every message topic at once.
+* We're probably looking to find the admin's user id to subscribe to their message topic.  The website has a big red button to call the admin, which presumably causes an admin client to connect and start publishing the flag on their secret message topic.
+* Clients are allowed to subscribe to message and errors topic for other clients, as long as your client id is a prefix of theirs.
+* MQTT (as a convention) reserves topics beginning with $SYS for debug information.  We are allowed to subscribe to these, or any non-message non-error topics, at will.
 
 Looking through the aedes source code, we find that the broker will announce all subscriptions on the system topic $SYS/\<broker-id\>/new/subscribes.  If we could subscribe to that topic, we'd probably be able to catch the admin coming online.  However, the broker id is by default a UUIDv4 which is not announced in any handshake packets.  Our goal is to somehow obtain it.
 
@@ -41,11 +41,11 @@ Looking again through the aedes source, we find that aedes uses a different pack
 
 Looking again at the challenge source code, we notice that in the event of an invalid publish or subscribe attempt, aedes will directly call `publish` with a payload containing the stringified packet, which could potentially contain the broker id.  However, under normal circumstances, `authorizePublish` and `authorizeSubscribe` are called very early in the respective publish and subcribe lifecycles.  So we need to look for a path where one of the two is called later in the packet lifecycle.  MQTT contains two mechanisms for special packet handling that might cause this:
 * Retained publish packets.  These are saved ("retained") to a particular topic, so when clients subscribe to that topic, they are immediately sent the retained message.
-* Last will.  This is a packet that a client can provide upon connection to the server which is sent if and only if the client disconnects abruptly.
+* Last will.  This is a packet that a client can provide upon connection to the server which is sent if and when the client disconnects abruptly.
 
 Examining the source or using the provided hint ("HINT: secure until death do us part"), we find that the last will exhibits the desired behavior.
 
-From [aedes/lib/handlers/connect.js](https://github.com/moscajs/aedes/blob/main/lib/handlers/connect.js#L194):
+From the client connection handler at [aedes/lib/handlers/connect.js](https://github.com/moscajs/aedes/blob/main/lib/handlers/connect.js#L194):
 ```js
 function storeWill (arg, done) {
   const client = this.client
@@ -100,7 +100,7 @@ So `authorizePublish` will be called on the will packet _after_ the broker id is
 
 ## Exploit chain
 
-First, we need to generate an appropriate will.  The payload of the will doesn't matter, but its topic ought to be something that the client is expressly NOT allowed to publish to.  Clients aren't allowed to publish to any non-message topic, so just some foobar topic will work.  We also need to be able to catch the broker's error feedback on the appropriate error channel.  If client1 is presenting the will, then the error feedback will be broadcast to errors/\<client1.id\>.  So we need to have a client0 that stays connected and is allowed to subscribe to this channel.  Thus it suffices for the client0, the one that survives, to have a client id that's a prefix of the client1's id.  Note that although the web interface we're given will randomly generate client ids, in fact we can provide whatever we want when doing this ourselves.  The flow is as follows:
+First, we need to generate an appropriate will.  The payload of the will doesn't matter, but its topic ought to be something that the client is expressly NOT allowed to publish to.  Clients aren't allowed to publish to any non-message topic, so just some foobar topic will work.  We also need to be able to catch the broker's error feedback on the appropriate error topic.  If client1 is presenting the will, then the error feedback will be broadcast to errors/\<client1.id\>.  So we need to have a client0 that stays connected and is allowed to subscribe to this topic.  Thus it suffices for the client0, the one that survives, to have a client id that's a prefix of the client1's id.  Note that although the web interface we're given will randomly generate client ids, in fact we can provide whatever we want when doing this ourselves.  The flow is as follows:
 
 * connect client0 with id `zwnj0`
 * subscribe to `errors/zwnj00`
