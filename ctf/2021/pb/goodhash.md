@@ -1,6 +1,8 @@
 # GoodHash
 crypto // rbtree // 2021 pbctf
 
+note: Due to markdown being inane and deleting repeated whitespace, there are code strings in this document that contain the non-printing character "U+200C zero width non-joiner".  **Copy and paste at your own risk.**  The solution code that lives adjacent to this file is safe.
+
 ## Setup
 The challenge is presented as a client-server interaction where we are ostensibly asked to find a hash collision.  However, there are two unusual parts to the hash procedure - the _structure_ and _usage_ of the hash function inputs.
 
@@ -74,7 +76,7 @@ We can use this tactic on our padded nonce which has 5 blocks, of which 4 have s
 
 5. Entirely padding, plus the length of the nonce.  We should take care to not modify the length of the unpadded nonce so that this block does not change.
 
-There are multiple approaches from here, but the one that makes the minimal modification to the token structure is to change the 4th block from `false` to `true`.  For our purposes, we can normalize the value of `GHASH` by dividing by `H^2`, so that the _target difference_ in the `GHASH` output is just the xor of `b'dmin": false}\x00\x00\x00'` with `b'dmin":true  }\x00\x00\x00'`.
+There are multiple approaches from here, but the one that makes the minimal modification to the token structure is to change the 4th block from `false` to `true`.  For our purposes, we can normalize the value of `GHASH` by dividing by `H^2`, so that the _target difference_ in the `GHASH` output is just the xor of `b'dmin": false}\x00\x00\x00'` with `b'dmin":true ‌ }\x00\x00\x00'`.
 
 Changing any bit in the remaining blocks will produce a related change in the overall value of `GHASH`.  For example, flipping the leftmost bit of the 3rd block will result in `H` being added to the value (recall that the bitstring is interpreted in little-endian).  Flipping the rightmost bit of the 2nd block will result in `2^127 * H^2` being added.  So on and so forth.
 
@@ -86,10 +88,10 @@ The next step is to precompute an xor mask that only affects the lower 4 bits of
 
 We construct a 128 by 128 matrix `M` in `GF(2)` to represent this as a system of equations.  For each bit that we control over in the first three blocks, we take the `GF(2^128)` product of `2^k`, where `k` is the little-endian bit position within its block, with `H^n`, where `n` is 3 for the first block, 2 for the second block, and 1 for the third block.  The product is then converted to an integer representation and its binary digits become a row of the equation matrix.
 
-The resulting matrix actually doesn't turn out to be full rank for some reason, but it's really close.  This is the reason why the target 4th block is `b'dmin":true  }'` with that whitespace.  A slight massage was all that was needed to get the matrix equation to solve.  In any case, if we needed more rank, we could have also edited the key name "token".
+The resulting matrix actually doesn't turn out to be full rank for some reason, but it's rank 127 which is close enough.  This is the reason why the target 4th block is `b'dmin":true ‌ }'` with that whitespace.  A slight massage was all that was needed to get the matrix equation to solve.  In any case, if we needed more rank, we could have also edited the key name "token".
 
 Letting `d` be the `GF(2)` vector corresponding to the binary digits of the `GHASH` target difference, solving the matrix equation `aM = d` gives us the required values of the bits in the xor mask.  We represent the xor mask as three integers, one per block.
 
-All that's left is to actually perform the interaction.  We get a token, xor its first three blocks with the respective masks, and add `b'dmin":true  }'` at the end.  Submitting that text gives the flag, `pbctf{GHASH_is_short_for_GoodHash_:joy:}`.
+All that's left is to actually perform the interaction.  We get a token, xor its first three blocks with the respective masks, and add `b'dmin":true ‌ }'` at the end.  Submitting that text gives the flag, `pbctf{GHASH_is_short_for_GoodHash_:joy:}`.
 
 ![exploit demo](images/2.png)
